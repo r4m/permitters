@@ -57,7 +57,6 @@ module ActionController
     def permitted_params
       scopes = {}
       unscoped_attributes = []
-      nil_attributes = []
 
       permitted_attributes.each do |attribute|
         scope_name = attribute.options[:scope]
@@ -77,16 +76,20 @@ module ActionController
         values.each do |record_id|
           dependency_type = attribute.options[:dependent]
           record = dependency_type == :nullify ? klass.find_by(id: record_id) : klass.find(record_id)
-          unless record.nil?
+          if record.present?
             permission = attribute.options[:authorize].to_sym || :read
-            authorize! permission, record
+            begin
+              authorize! permission, record
+            rescue CanCan::AccessDenied
+              drop(attribute)
+            end
           else
-            nil_attributes.push attribute.name
+            drop(attribute)
           end
         end
       end
 
-      return @filtered_params, nil_attributes
+      return @filtered_params
     end
 
     def authorize!(*args, &block)
@@ -99,6 +102,15 @@ module ActionController
     end
 
   private
+
+    def drop(attribute)
+      attribute_name = attribute.name.to_sym
+      # if attribute_name == :user_id
+      #   @filtered_params[attribute_name] = @user.id
+      # else
+        @filtered_params.delete(attribute_name)
+      # end
+    end
 
     def params
       @params

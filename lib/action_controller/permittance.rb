@@ -15,7 +15,7 @@ module ActionController
       pinstance = (@permitter_class_to_permitter ||= {})[pclass]
       return pinstance if pinstance
       current_authorizer_method = ActionController::Permitter.current_authorizer_method ? ActionController::Permitter.current_authorizer_method.to_sym : nil
-      @permitter_class_to_permitter[pclass] = pclass.new(params, defined?(current_user) ? current_user : nil, current_authorizer_method && defined?(current_authorizer_method) ? __send__(current_authorizer_method) : nil)
+      @permitter_class_to_permitter[pclass] = pclass.new(params, get_user, current_authorizer_method && defined?(current_authorizer_method) ? __send__(current_authorizer_method) : nil)
     end
 
     # Returns the permitter class corresponding to the controller by matching everything in the controller class name
@@ -36,6 +36,10 @@ module ActionController
 
     def get_permitted_params_using(pinstance)
       (@permitter_to_permitted_params ||= {})[pinstance] ||= pinstance.permitted_params
+    end
+
+    def get_user
+      defined?(current_user) ? current_user : nil
     end
   end
 end
