@@ -8,6 +8,9 @@ module ActionController
     cattr_accessor :authorizer, :instance_accessor => false
     cattr_accessor :current_authorizer_method, :instance_accessor => false
 
+    POLICIES = { :rejection => 1, :nilification => 2, :preservation => 3 }
+    POLICY = :rejection
+
     class << self
       # When Permitter is inherited, it sets the resource (the symbol for params.require(some_sym)) to the unnamespaced model class that corresponds
       # to the Permitter's classname, e.g. by default A::B::ApplesController will use A::B::ApplePermitter which will do params.permit(:apple).
@@ -76,15 +79,24 @@ module ActionController
         values.each do |record_id|
           dependency_type = attribute.options[:dependent]
           record = dependency_type == :nullify ? klass.find_by(id: record_id) : klass.find(record_id)
-          if record.present?
-            permission = attribute.options[:authorize].to_sym || :read
-            begin
-              authorize! permission, record
-            rescue CanCan::AccessDenied
-              drop(attribute)
-            end
-          else
-            drop(attribute)
+          permission = attribute.options[:authorize].to_sym || :read
+          case POLICY
+            when :preservation 
+              if record.present?
+                begin
+                  authorize! permission, record
+                rescue CanCan::AccessDenied
+                  drop(attribute)
+                end
+              else
+                drop(attribute)
+              end
+            when :rejection
+              if attribute.name.to_sym == :user_id && record_id.nil? 
+                drop(attribute)
+              else
+                authorize! permission, record
+              end
           end
         end
       end
