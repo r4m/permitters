@@ -76,6 +76,8 @@ module ActionController
         raise PermitterError.new("Cannot permit #{attribute.name.inspect} unless you specify the the attribute name (e.g. :something_id or :something_ids), or a class name via the :as option (e.g. :as => Something)") unless klass_name
         klass = klass_name.classify.constantize
 
+        drop(attribute) if attribute.name.to_sym == :user_id && values.empty? 
+
         values.each do |record_id|
           dependency_type = attribute.options[:dependent]
           record = dependency_type == :nullify ? klass.find_by(id: record_id) : klass.find(record_id)
@@ -92,11 +94,7 @@ module ActionController
                 drop(attribute)
               end
             when :rejection
-              if attribute.name.to_sym == :user_id && record_id.nil? 
-                drop(attribute)
-              else
-                authorize! permission, record
-              end
+              authorize! permission, record
           end
         end
       end
